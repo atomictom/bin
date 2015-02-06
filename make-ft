@@ -1,0 +1,11 @@
+#!/bin/bash
+
+exe=$(which $1)
+if [ ! -z "$2" ]; then
+	echo "#!$exe" > "$2"
+else
+	echo "#!$exe"
+fi
+
+
+
