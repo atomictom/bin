@@ -1,0 +1,34 @@
+#!/bin/bash
+
+cd ~/.packages/vim/
+
+# Update
+hg pull && hg update
+if [ ! "$?" ]; then
+	echo "Update failed"
+	exit 1
+fi
+
+# Configure
+make distclean
+./configure --with-features=huge --with-lua --enable-luainterp=yes --with-x --enable-gui=auto --enable-cscope --enable-pythoninterp --enable-fontset
+if [ ! "$?" ]; then
+	echo "Configure failed"
+	exit 2
+fi
+
+# Build
+make
+if [ ! "$?" ]; then
+	echo "Build failed"
+	exit 3
+fi
+
+# Install
+ln -f src/vim ~/.bin
+if [ ! "$?" ]; then
+	echo "Install failed"
+	exit 4
+fi
+
+echo Vim has been successfully updated!
