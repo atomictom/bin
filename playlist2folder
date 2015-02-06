@@ -1,0 +1,178 @@
+#!/bin/bash
+
+# Thomas Manning
+# playlist2folder -- Copy a playlist to a folder!
+
+success=0
+invalid_playlist=1
+invalid_directory=2
+invalid_option=3
+
+force=""
+overwrite=""
+while getopts ":fo" arg; do
+	case "${arg}" in
+		f)
+			force=yes
+			;;
+		o)
+			overwrite=yes
+			;;
+		*)
+			print_usage
+			;;
+	esac
+done
+shift $((OPTIND-1))
+
+# Better names for our variables
+playlist="$1"
+directory="$2"
+
+function add_songs {
+	overwrite="$1"
+	# For every song in the playlist
+	while read song; do
+		# If the line is not empty, and does not start with a hash mark
+		# (if so it's probably a comment line or metadata)
+		if [ -n "$song" ] && ! expr match "$song" "\s*#" > /dev/null; then
+			if [ -z overwrite ]; then
+				cp -n "$song" "$directory";
+			else
+				cp -u "$song" "$directory";
+			fi
+		fi
+	done < "$playlist"
+}
+
+function update_directory {
+	# See if the directory has any files in it or not
+	if expr $(find "$directory" -maxdepth 1 -type f | wc -l) != "0" > /dev/null; then
+		if [ -z "$force" ]; then
+			echo "There are existing files in directory '$directory'"
+			no_yes "Would you like to overwrite these files?"
+			case "$?" in
+				0)
+					add_songs overwrite
+					exit 0
+					;;
+				1)
+					# Do nothing to call add_songs normally
+					;;
+				*)
+					echo "Invalid option. Exiting."
+					exit $invalid_option
+					;;
+			esac
+		fi
+	fi
+	add_songs "$overwrite"
+}
+
+# Default to "yes"
+function yes_no {
+	question "y" "$@"
+}
+
+# Default to "no"
+function no_yes {
+	question "n" "$@"
+}
+
+# Pose a question with a default option
+function question {
+		# Get the default option
+		default="$1"
+		shift 1
+
+		# Display the prompt
+		if [ ! -z "$@" ]; then
+			echo -n "$@ "
+			case "$default" in
+				"y" )
+					echo -n "[Y/n]? "
+					;;
+				"n" )
+					echo -n "[y/N]? "
+					;;
+			esac
+		fi
+
+		# Get the answer
+		read answer
+		if [ -z "$answer" ]; then
+			answer="$default"
+		fi
+
+		echo
+
+		case "$answer" in
+			[yY] | [yY][eE][sS])
+				return 0
+				;;
+			[nN] | [nN][oO] )
+				return 1
+				;;
+			*)
+				return 2
+				;;
+		esac
+}
+
+function print_usage {
+	# TODO: Strip the leading directories from $0 in a sh compliant way
+	echo "Usage:"
+	echo "	$0 playlist directory"
+
+	# Exit with an error in the first case and with success in the second.
+	if [ -z "$playlist" ]; then
+		exit $invalid_playlist
+	else
+		exit $success
+	fi
+}
+
+# Print usage if either argument is missing or "--help" is specified.
+if [ -z "$playlist" -o -z "$directory" ] || expr "$playlist" == "--help" > /dev/null; then
+	print_usage
+fi
+
+# Check if the first argument (the playlist) is a file or not
+if [ ! -f "$playlist" ]; then
+	echo "The first argument should be a playlist file."
+	echo "The given argument is not a file: " $playlist
+	exit $invalid_playlist
+fi
+
+# Check if the second argument (the directory) already exists
+if [ -e "$directory" ]; then
+	if [ -d "$directory" ] ; then
+		if [ -z "$force" ] ; then
+			echo "The directory '$directory' already exists."
+			yes_no "Would you like to update it"
+			case $? in
+				0)
+					# Do nothing to break out and call update_directory()
+					;;
+				1)
+					echo "No operation will be performed. Exiting."
+					exit $success
+					;;
+				*)
+					echo "Invalid option. Exiting."
+					exit $invalid_option
+					;;
+			esac
+		fi
+	else # Second argument exists but is not a directory
+		echo "Bad argument: $directory"
+		echo "The second argument should be a directory that may or may not already exist."
+		exit $invalid_directory
+	fi
+else
+	# The second argument does not yet exist
+	# Make the directory and any necessary parents along the way
+	mkdir --parents "$directory"
+fi
+
+update_directory
