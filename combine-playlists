@@ -1,0 +1,23 @@
+#!/usr/bin/python
+
+import sys
+import itertools
+
+num_args = len(sys.argv)
+
+args = itertools.chain(sys.argv, [None])
+
+if num_args == 3 or num_args == 4:
+    p1, p2, p_out = list(args)[1:4]
+else:
+    print "Usage: ./{} playlist1 playlist2 [output]".format(sys.argv[0])
+
+with open(p1) as in1, open(p2) as in2:
+    combined = ''.join(set(in1.readlines()) | set(in2.readlines()))
+
+if p_out:
+    with open(p_out, 'w') as out:
+        out.write(combined)
+else:
+    sys.stdout.write(combined)
+
