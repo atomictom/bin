@@ -1,0 +1,43 @@
+#!/usr/bin/python
+
+# A utility to parse the output of df in a slightly more friendly
+# format (that's also specific to my machine, though that could
+# probably be changed, but this was just a quick fun script).
+
+import os
+import re
+
+df_lines = list(os.popen("/bin/df -h"))
+
+def report(place, line):
+	# Grab the fields from each line in the df command
+	fs, size, used, avail, percentage, mount = re.match("(\S+)\s+" * 6, line).groups()
+
+	# Turn the percentage into an actual float
+	ratio = float(re.match("\d+", percentage).group(0)) / 100
+
+	# Create some filled and unfilled characters corresponding to the ratio of available space
+	num_filled = int(round(ratio * 50))
+	filled = "#" * num_filled
+	unfilled = "_" * (50 - num_filled)
+
+	print "{} --> [{}{}]".format(place, filled, unfilled)
+	print "\tAvailable: {}".format(avail)
+	print "\tPercentage: {}".format(percentage)
+
+# Grab info for my Data partition
+for line in df_lines:
+	if line.strip().endswith("Data"):
+		report("Data", line)
+
+# Grab info for my home partition
+print
+for line in df_lines:
+	if line.strip().endswith("home"):
+		report("Home", line)
+
+# Grab info for the root partition
+print
+for line in df_lines:
+	if line.strip()[-1] == "/":
+		report("Root", line)
